@@ -19,5 +19,14 @@ export default [
         "id": "hilang-barang-form-detail"
       }),
     ]),
+    ...prefix("penjualan", [
+      index("routes/menu/penjualan/index.tsx"),
+      route("create", "routes/menu/penjualan/form.tsx", {
+        "id": "penjualan-form-create"
+      }),
+      route(":trxID", "routes/menu/penjualan/form.tsx", {
+        "id": "penjualan-form-detail"
+      }),
+    ]),
   ])
 ] satisfies RouteConfig;

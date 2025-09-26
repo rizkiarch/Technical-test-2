@@ -12,26 +12,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    // Auth routes
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
         Route::post('login', 'login');
     });
 
-    // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
-        // User routes
         Route::resource('user', UserController::class);
-        // Gudang routes
         Route::resource('gudang', GudangController::class);
-        // Produk routes
         Route::resource('produk', ProdukController::class);
-        // Stok routes
         Route::resource('stok', StokController::class);
-        // Customer routes
         Route::resource('customer', CustomerController::class);
-        // Hilang Barang routes
         Route::resource('hilang-barang', HilangBarangController::class);
-        // Pesanan Jual routes
         Route::resource('pesanan-jual', PesananJualController::class);
         Route::get('pesanan-jual-customers', [PesananJualController::class, 'getActiveCustomers']);
         Route::get('pesanan-jual-gudangs', [PesananJualController::class, 'getActiveGudangs']);

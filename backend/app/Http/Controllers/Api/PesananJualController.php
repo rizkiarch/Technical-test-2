@@ -45,7 +45,11 @@ class PesananJualController extends Controller
         $perPage = $request->get('per_page', 15);
         $data = $query->orderBy('pjl_id', 'desc')->paginate($perPage);
 
-        return response()->json($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'List penjualan retrieved successfully',
+            'data' => ['penjualans' => $data]
+        ]);
     }
 
     public function show(string $id): JsonResponse
@@ -53,10 +57,17 @@ class PesananJualController extends Controller
         $data = TrPesananJual::with(['customer', 'gudang', 'details.produk'])->find($id);
 
         if (!$data) {
-            return response()->json(['message' => 'Data not found'], 404);
+            return response()->json([
+                'status' => false,
+                'message' => 'Data not found'
+            ], 404);
         }
 
-        return response()->json($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'Penjualan data retrieved successfully',
+            'data' => ['penjualan' => $data]
+        ]);
     }
 
     public function store(CreateRequest $request): JsonResponse
@@ -68,50 +79,67 @@ class PesananJualController extends Controller
 
             $totalAmount = 0;
             foreach ($request->details as $detail) {
-                $totalAmount += $detail['dtpjl_qty'] * $detail['dtpjl_harga'];
+                $subtotalSblm = $detail['dpjl_qty'] * $detail['dpjl_harga_sblm_disc'];
+                $discAmount = $subtotalSblm * ($detail['dpjl_disc'] / 100);
+                $subtotalSetelah = $subtotalSblm - $discAmount;
+                $totalAmount += $subtotalSetelah;
             }
 
             $pesananJual = TrPesananJual::create([
                 'pjl_id' => $pjlId,
                 'pjl_tanggal' => $request->pjl_tanggal,
-                'pjl_customer' => $request->pjl_customer,
-                'pjl_gudang' => $request->pjl_gudang,
-                'pjl_total' => $totalAmount,
+                'pjl_cust_id' => $request->pjl_cust_id,
+                'pjl_gud_id' => $request->pjl_gud_id,
+                'pjl_cust_is_member' => $request->pjl_cust_is_member ?? false,
+                'pjl_catatan' => $request->pjl_catatan,
+                'pjl_total_harga' => $totalAmount,
+                'pjl_void' => false,
             ]);
 
             foreach ($request->details as $detail) {
                 DtPesananJual::create([
-                    'dtpjl_pjlid' => $pjlId,
-                    'dtpjl_produk' => $detail['dtpjl_produk'],
-                    'dtpjl_qty' => $detail['dtpjl_qty'],
-                    'dtpjl_harga' => $detail['dtpjl_harga'],
-                    'dtpjl_subtotal' => $detail['dtpjl_qty'] * $detail['dtpjl_harga'],
+                    'dpjl_pjl_id' => $pjlId,
+                    'dpjl_prd_id' => $detail['dpjl_prd_id'],
+                    'dpjl_qty' => $detail['dpjl_qty'],
+                    'dpjl_harga_sblm_disc' => $detail['dpjl_harga_sblm_disc'],
+                    'dpjl_disc' => $detail['dpjl_disc'],
                 ]);
 
                 CalculateStok::reduceStock(
-                    $detail['dtpjl_produk'],
-                    $request->pjl_gudang,
-                    $detail['dtpjl_qty']
+                    $detail['dpjl_prd_id'],
+                    $request->pjl_gud_id,
+                    $detail['dpjl_qty']
                 );
             }
 
             DB::commit();
 
-            return response()->json($pesananJual->load(['customer', 'gudang', 'details.produk']), 201);
+            return response()->json([
+                'status' => true,
+                'message' => 'Penjualan created successfully',
+                'data' => ['penjualan' => $pesananJual->load(['customer', 'gudang', 'details.produk'])]
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to create transaction: ' . $e->getMessage()], 500);
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to create transaction: ' . $e->getMessage()
+            ], 500);
         }
     }
 
     public function getActiveCustomers(): JsonResponse
     {
         $customers = MsCustomer::where('cus_aktif', 'Y')
-            ->select('cus_id', 'cus_nama', 'cus_ismember')
+            ->select('cus_id', 'cus_nama', 'cus_kota', 'cus_is_member')
             ->orderBy('cus_nama')
             ->get();
 
-        return response()->json($customers);
+        return response()->json([
+            'status' => true,
+            'message' => 'Active customers retrieved successfully',
+            'data' => $customers
+        ]);
     }
 
     public function getActiveGudangs(): JsonResponse
@@ -121,33 +149,45 @@ class PesananJualController extends Controller
             ->orderBy('gud_nama')
             ->get();
 
-        return response()->json($gudangs);
+        return response()->json([
+            'status' => true,
+            'message' => 'Active warehouses retrieved successfully',
+            'data' => $gudangs
+        ]);
     }
 
     public function getActiveProducts(Request $request): JsonResponse
     {
         $query = MsProduk::where('prd_aktif', 'Y')
-            ->select('prd_id', 'prd_nama', 'prd_minpesanan', 'prd_hargamin');
+            ->select('prd_id', 'prd_nama', 'prd_min_pesanan', 'prd_hargamin', 'prd_hargadef');
 
         if ($request->filled('gudang_id')) {
             $query->with(['stok' => function ($q) use ($request) {
-                $q->where('stok_gudang', $request->gudang_id);
+                $q->where('stk_gud_id', $request->gudang_id);
             }]);
         }
 
         $products = $query->orderBy('prd_nama')->get();
 
-        return response()->json($products);
+        return response()->json([
+            'status' => true,
+            'message' => 'Active products retrieved successfully',
+            'data' => $products
+        ]);
     }
 
     public function getProductStock(string $productId, string $gudangId): JsonResponse
     {
-        $stok = MsStok::where('stok_produk', $productId)
-            ->where('stok_gudang', $gudangId)
+        $stok = MsStok::where('stk_prd_id', $productId)
+            ->where('stk_gud_id', $gudangId)
             ->first();
 
-        $availableStock = $stok ? $stok->stok_qty : 0;
+        $availableStock = $stok ? $stok->stk_qty : 0;
 
-        return response()->json(['available_stock' => $availableStock]);
+        return response()->json([
+            'status' => true,
+            'message' => 'Stock data retrieved successfully',
+            'data' => ['stok' => $availableStock]
+        ]);
     }
 }

@@ -21,12 +21,10 @@ class CalculateStok
 
     public static function reduceStock($productId, $gudangId, $qty)
     {
-        $stok = MsStok::where('stok_produk', $productId)
-            ->where('stok_gudang', $gudangId)
-            ->first();
-
-        if ($stok) {
-            $stok->decrement('stok_qty', $qty);
-        }
+        MsStok::where('stk_prd_id', $productId)
+            ->where('stk_gud_id', $gudangId)
+            ->update([
+                'stk_qty' => DB::raw('stk_qty - ' . (int)$qty)
+            ]);
     }
 }

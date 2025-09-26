@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\TrPesananJual;
-use App\Services\HilangBarang\HilangBarangIDGenerator;
+use App\Services\PesananJual\TrPesananJualIDGenerator;
 use Illuminate\Support\Facades\Auth;
 
 class TrPesananJualObserver
@@ -13,9 +13,9 @@ class TrPesananJualObserver
      */
     public function creating(TrPesananJual $trPesananJual): void
     {
-        $trPesananJual->hil_id = HilangBarangIDGenerator::generate($trPesananJual->hil_gud_id);
-        if (empty($trPesananJual->hil_create_user)) {
-            $trPesananJual->hil_create_user = Auth::id();
+        $trPesananJual->pjl_id = TrPesananJualIDGenerator::generate($trPesananJual->pjl_gud_id);
+        if (empty($trPesananJual->pjl_create_user)) {
+            $trPesananJual->pjl_create_user = Auth::id();
         }
     }
 }

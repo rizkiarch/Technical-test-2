@@ -10,10 +10,10 @@ class MsStok extends Model
     public $timestamps = false;
     public $incrementing = false;
     protected $table = 'ms_stok';
-    
+
     protected $fillable = [
         'stk_gud_id',
         'stk_prd_id',
-        'stk_prd_qty',
+        'stk_qty',
     ];
 }

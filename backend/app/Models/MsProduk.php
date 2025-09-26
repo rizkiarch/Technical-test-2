@@ -21,11 +21,11 @@ class MsProduk extends Model
         'prd_aktif',
         'prd_hargadef',
         'prd_hargamin',
-        'prd_minpesanan'
+        'prd_min_pesanan'
     ];
 
     public function stok()
     {
-        return $this->hasMany(MsStok::class, 'stok_produk', 'prd_id');
+        return $this->hasMany(MsStok::class, 'stk_prd_id', 'prd_id');
     }
 }
