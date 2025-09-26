@@ -15,7 +15,8 @@ class TrPesananJualIDGenerator
 
     public static function generate(string $dateStr = null): string
     {
-        $dateFormat = $dateStr ? date('ymd', strtotime($dateStr)) : date('ymd');
+        // $dateStr ? date('ymd', strtotime($dateStr)) :
+        $dateFormat = date('ymd');
         $prefix = 'JL' . $dateFormat . '-';
         $defaultID = $prefix . '001';
 

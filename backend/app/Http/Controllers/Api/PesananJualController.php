@@ -63,6 +63,8 @@ class PesananJualController extends Controller
             ], 404);
         }
 
+
+
         return response()->json([
             'status' => true,
             'message' => 'Penjualan data retrieved successfully',
@@ -97,13 +99,15 @@ class PesananJualController extends Controller
             ]);
 
             foreach ($request->details as $detail) {
-                DtPesananJual::create([
+                $createdDetail = DtPesananJual::create([
                     'dpjl_pjl_id' => $pjlId,
                     'dpjl_prd_id' => $detail['dpjl_prd_id'],
                     'dpjl_qty' => $detail['dpjl_qty'],
                     'dpjl_harga_sblm_disc' => $detail['dpjl_harga_sblm_disc'],
                     'dpjl_disc' => $detail['dpjl_disc'],
                 ]);
+
+
 
                 CalculateStok::reduceStock(
                     $detail['dpjl_prd_id'],
@@ -188,6 +192,24 @@ class PesananJualController extends Controller
             'status' => true,
             'message' => 'Stock data retrieved successfully',
             'data' => ['stok' => $availableStock]
+        ]);
+    }
+
+    // Temporary debug method
+    public function debugDetails(string $id): JsonResponse
+    {
+        $details = DtPesananJual::where('dpjl_pjl_id', $id)->get();
+        $detailsCount = DtPesananJual::where('dpjl_pjl_id', $id)->count();
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Debug details',
+            'data' => [
+                'pjl_id' => $id,
+                'details_count' => $detailsCount,
+                'details' => $details,
+                'all_details_count' => DtPesananJual::count()
+            ]
         ]);
     }
 }
