@@ -1,0 +1,69 @@
+networks:
+  minierp_network:
+    driver: bridge
+
+volumes:
+  minierp_db:
+    driver: local
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www/backend
+      - ./frontend/build:/var/www/frontend/dist
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - backend
+    networks:
+      - minierp_network
+
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: "minierp"
+      MYSQL_ROOT_PASSWORD: "rootpassword"
+      MYSQL_PASSWORD: "password"
+      MYSQL_USER: "minierpuser"
+    volumes:
+      - minierp_db:/var/lib/mysql
+    ports:
+      - 3306:3306
+    networks:
+      - minierp_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    depends_on:
+      - mysql
+    ports:
+      - "9000:9000"
+    networks:
+      - minierp_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./frontend:/var/www/frontend
+    ports:
+      - 3000:3000
+    networks:
+      - minierp_network
