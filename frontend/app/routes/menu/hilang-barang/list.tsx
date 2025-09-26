@@ -27,7 +27,7 @@ const HilangBarangList = forwardRef<HilangBarangListRef, HilangBarangListProps>(
       filter: true,
       sortable: true,
       resizable: true,
-      suppressMenu: true, 
+      suppressMenu: true,
       floatingFilter: true,
       suppressFloatingFilterButton: true,
     }
@@ -42,24 +42,35 @@ const HilangBarangList = forwardRef<HilangBarangListRef, HilangBarangListProps>(
     { headerName: "Tanggal", field: "hil_tanggal", width: 120 },
     { headerName: "Gudang", field: "hil_gud_id", width: 100 },
     { headerName: "Catatan", field: "hil_catatan", width: 300 },
-    { headerName: "Total Biaya", field: "hil_total_biaya", width: 150, cellStyle: { textAlign: 'right' }, filter: false, cellRenderer: (params: any) => {
-      return (
-        <LocaleProvider locale="de-DE">
-          <FormatNumber value={params.node.data.hil_total_biaya}/>
-        </LocaleProvider>
-      )
-    } },
+    {
+      headerName: "Total Biaya", field: "hil_total_biaya", width: 150, cellStyle: { textAlign: 'right' }, filter: false, cellRenderer: (params: any) => {
+        return (
+          <LocaleProvider locale="de-DE">
+            <FormatNumber value={params.node.data.hil_total_biaya} />
+          </LocaleProvider>
+        )
+      }
+    },
     { headerName: "Void", field: "hil_void", width: 80 },
   ]);
 
   const getHilangBarang = async () => {
     try {
-      const response = await apiClient(true).get("/v1/hilang-barang", {
-        params: {
-          page: currentPage,
-          ...(filters && filters)
-        }
-      })
+      const params: any = {
+        page: currentPage,
+        per_page: perPage
+      };
+
+      // Tambahkan filter parameters sesuai dengan backend API
+      if (filters) {
+        if (filters.hil_id) params.hil_id = filters.hil_id;
+        if (filters.hil_tanggal) params.hil_tanggal = filters.hil_tanggal;
+        if (filters.hil_gud_id) params.hil_gud_id = filters.hil_gud_id;
+        if (filters.hil_catatan) params.hil_catatan = filters.hil_catatan;
+        if (filters.hil_void) params.hil_void = filters.hil_void;
+      }
+
+      const response = await apiClient(true).get("/v1/hilang-barang", { params })
       const responseData = response.data;
       if (!responseData.status) {
         setError(responseData.message);
@@ -83,11 +94,20 @@ const HilangBarangList = forwardRef<HilangBarangListRef, HilangBarangListProps>(
   const onFilterChanged = (event: any) => {
     let filters: any = {};
     let filterModels = event.api.getFilterModel();
+
     for (let key of Object.keys(filterModels)) {
-      filters[key] = filterModels[key].filter;
+      const filterModel = filterModels[key];
+      if (filterModel.type === 'contains') {
+        filters[key] = filterModel.filter;
+      } else if (filterModel.filterType === 'text') {
+        filters[key] = filterModel.filter;
+      } else {
+        filters[key] = filterModel.filter;
+      }
     }
+
     setFilters(filters);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset ke halaman pertama saat filter berubah
   };
 
   useEffect(() => {
@@ -101,7 +121,7 @@ const HilangBarangList = forwardRef<HilangBarangListRef, HilangBarangListProps>(
   useImperativeHandle(ref, () => ({
     refresh: () => {
       getHilangBarang();
-    } 
+    }
   }));
 
   const alertError = () => {
@@ -127,24 +147,33 @@ const HilangBarangList = forwardRef<HilangBarangListRef, HilangBarangListProps>(
         onRowDoubleClicked={(event: RowDoubleClickedEvent) => onRowDoubleClicked(event.data)}
       ></AgGridReact>
       <HStack width="full" marginY={2} justify="end">
-        <Pagination.Root count={total} pageSize={perPage} defaultPage={1} key="sm">
+        <Pagination.Root count={total} pageSize={perPage} page={currentPage} key="sm">
           <ButtonGroup variant="ghost" size="sm">
             <Pagination.PrevTrigger asChild>
-              <IconButton onClick={() => setCurrentPage(currentPage - 1)}>
+              <IconButton
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+              >
                 <LuChevronLeft />
               </IconButton>
             </Pagination.PrevTrigger>
 
             <Pagination.Items
               render={(page) => (
-                <IconButton variant={{ base: "ghost", _selected: "solid" }} onClick={() => setCurrentPage(page.value)}>
+                <IconButton
+                  variant={page.value === currentPage ? "solid" : "ghost"}
+                  onClick={() => setCurrentPage(page.value)}
+                >
                   {page.value}
                 </IconButton>
               )}
             />
 
             <Pagination.NextTrigger asChild>
-              <IconButton onClick={() => setCurrentPage(currentPage + 1)}>
+              <IconButton
+                onClick={() => setCurrentPage(Math.min(Math.ceil(total / perPage), currentPage + 1))}
+                disabled={currentPage >= Math.ceil(total / perPage)}
+              >
                 <LuChevronRight />
               </IconButton>
             </Pagination.NextTrigger>

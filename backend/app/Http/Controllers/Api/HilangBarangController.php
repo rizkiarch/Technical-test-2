@@ -45,9 +45,10 @@ class HilangBarangController extends Controller
             $hilangBarangs = $hilangBarangs->where('hil_void', 'LIKE', '%' . $request->hil_void . '%');
         }
 
-        $hilangBarangs = $hilangBarangs->paginate(25);
+        $perPage = $request->get('per_page', 25);
+        $hilangBarangs = $hilangBarangs->paginate($perPage);
 
-        return Http::jsonSuccess('List product retrieved', [ 'hilang_barangs' => $hilangBarangs ]);
+        return Http::jsonSuccess('List hilang barang retrieved', ['hilang_barangs' => $hilangBarangs]);
     }
 
     /**
@@ -75,7 +76,7 @@ class HilangBarangController extends Controller
             // check stock
             foreach (
                 MsStok::where('stk_gud_id', $data['hil_gud_id'])
-                    ->whereIn('stk_prd_id', Arr::map($data['details'], function($detail) {
+                    ->whereIn('stk_prd_id', Arr::map($data['details'], function ($detail) {
                         return $detail['dhil_prd_id'];
                     }))
                     ->cursor() as $stok
@@ -86,14 +87,14 @@ class HilangBarangController extends Controller
             }
 
             $trData = Arr::except($data, 'details');
-            $totalBiaya = collect($data['details'])->sum(function($detail) {
+            $totalBiaya = collect($data['details'])->sum(function ($detail) {
                 return $detail['dhil_biaya'] * $detail['dhil_qty'];
             });
             Arr::set($trData, 'hil_total_biaya', $totalBiaya);
 
             $tr = TrHilangBarang::create($trData);
             $tr->details()->saveMany(
-                Arr::map($data['details'], function($detail) {
+                Arr::map($data['details'], function ($detail) {
                     return new DtHilangBarang($detail);
                 })
             );
@@ -101,7 +102,7 @@ class HilangBarangController extends Controller
             // reduce current stock
             CalculateStok::reduceFromHilangBarang($data['hil_gud_id'], $tr->hil_id);
 
-            return Http::jsonSuccess('Transaksi berhasil disimpan', [ 'hilang_barang' => $tr ]);
+            return Http::jsonSuccess('Transaksi berhasil disimpan', ['hilang_barang' => $tr]);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
             return Http::jsonError('Internal server error', NULL);
@@ -115,14 +116,14 @@ class HilangBarangController extends Controller
     {
         try {
             $tr = TrHilangBarang::with([
-                'details' => function($query) {
+                'details' => function ($query) {
                     $query->select(['dt_hilang_barang.*', 'ms_produk.prd_nama AS dhil_prd_nama'])->leftJoin('ms_produk', 'ms_produk.prd_id', 'dt_hilang_barang.dhil_prd_id');
                 }
             ])->find($id);
             if (empty($tr)) {
                 return Http::jsonError('Transaksi tidak ditemukan', NULL, JsonResponse::HTTP_NOT_FOUND);
             }
-            return Http::jsonSuccess('Transaksi berhasil diambil', [ 'hilang_barang' => $tr ]);
+            return Http::jsonSuccess('Transaksi berhasil diambil', ['hilang_barang' => $tr]);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
             return Http::jsonError('Internal server error', NULL);
